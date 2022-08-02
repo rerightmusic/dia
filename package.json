@@ -1,0 +1,38 @@
+{
+  "name": "dia",
+  "private": true,
+  "version": "0.0.1",
+  "author": "Pavlos Georgiou",
+  "license": "MIT",
+  "bin": {
+    "dia": "bin/index.ts"
+  },
+  "scripts": {
+    "setup": "yarn && yarn build",
+    "build": "yarn tsc -b tsconfig.json",
+    "build:watch": "yarn tsc -b tsconfig.json --preserveWatchOutput -w",
+    "dev": "yarn build:watch",
+    "test": "yarn build && yarn jest",
+    "test:watch": "yarn jest --watchAll",
+    "trun": "./bin/index.ts"
+  },
+  "dependencies": {
+    "ajv": "^8.6.3",
+    "chalk": "^4.1.2",
+    "node": "^16.11.1",
+    "yargs": "^17.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^16.11.0",
+    "@types/yargs": "^17.0.3",
+    "@types/jest": "^27.0.2",
+    "ts-jest": "^27.0.7",
+    "jest": "^27.3.1",
+    "typescript": "^4.4.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [],
+    "preset": "ts-jest"
+  }
+}
