@@ -51,11 +51,26 @@ export const runCommand = (
     });
 
     (command.options || []).forEach(o => {
-      let replacementOption = '';
-      if (argv[o.name]) {
-        replacementOption = `${argv[o.name]}`;
+      const renamedAliasReg = new RegExp(`\\$\\{(--?.+) (.*)${o.name}\\}`);
+      const renamedMatch = cmd.match(renamedAliasReg);
+      const justReplaceReg = new RegExp(`\\$\\{${o.name}\\}`);
+      const justReplaceMatch = cmd.match(justReplaceReg);
+
+      if (renamedMatch) {
+        const optPrefix = renamedMatch[1];
+        const namePrefix = renamedMatch[2];
+        let replacement = (
+          (argv[o.name] && o.type === 'array' ? argv[o.name] : [argv[o.name]]) as string[]
+        ).map(x => `${optPrefix} ${namePrefix}${x}`);
+        cmd = cmd.split(renamedMatch[0]).join(replacement.join(' '));
       }
-      cmd = cmd.split(`$\{${o.name}}`).join(replacementOption);
+
+      if (!renamedMatch && justReplaceMatch) {
+        let replacement = (
+          argv[o.name] && o.type === 'array' ? argv[o.name] : [argv[o.name]]
+        ) as string[];
+        cmd = cmd.split(justReplaceMatch[0]).join(replacement.join(' '));
+      }
     });
 
     printCommand(gitRoot, projectPath, cmd, []);
@@ -197,11 +212,42 @@ export const applyCommands = (
 
       if (k.split(' ').length > 1 && typeof cmdAndPath.command === 'string') {
         const split = k.split(' ');
+        const [args, options] = split.slice(1).reduce(
+          (prev, next) => {
+            const optArr = next.match('\\[--(.+?)(,-(.+))?\\]');
+            const opt = next.match('--(.+)(,-(.+?))?');
+            const argArr = next.match('\\[(.+)\\]');
+            if (optArr) {
+              let alias = optArr[3];
+              let name = optArr[1];
+              return [prev[0], prev[1].concat(prev[1], [{ name, alias, type: 'array' }])];
+            }
+
+            if (opt) {
+              let alias = opt[1];
+              let name = opt[2];
+              return [prev[0], prev[1].concat(prev[1], [{ name, alias, type: 'string' }])];
+            }
+
+            if (argArr) {
+              let name = argArr[1];
+              return [prev[0].concat([{ name, type: 'array' }]), prev[1]];
+            }
+
+            return [prev[0].concat([{ name: next, type: 'string' }]), prev[1]];
+          },
+          [
+            [] as { name: string; type: string }[],
+            [] as { name: string; alias: string; type: string }[],
+          ]
+        );
+
         cmdAndPath = {
           ...cmdAndPath,
           command: {
             command: cmdAndPath.command,
-            args: split.slice(1).map(a => ({ name: a, type: 'string' })),
+            args,
+            options,
           } as CustomCommand,
         };
         key = split[0];
@@ -219,11 +265,13 @@ export const applyCommands = (
         yargs_ => {
           if (typeof cmd === 'object' && 'command' in cmd) {
             (cmd.args || []).forEach(a => {
-              yargs_.positional(a.name, { type: a.type });
+              yargs_.positional(a.name, { type: 'string' });
               if (a.required === true) yargs_.requiresArg(a.name);
             });
             (cmd.options || []).forEach(o => {
-              yargs_.option(o.name, { type: o.type, alias: o.alias });
+              if (o.type === 'array') {
+                yargs_.option(o.name, { type: 'string', alias: o.alias }).array(o.name);
+              } else yargs_.option(o.name, { type: o.type, alias: o.alias });
               if (o.required === true) yargs_.demandOption(o.name);
             });
           } else {
@@ -262,7 +310,7 @@ export const applyCommands = (
 const run = (command: string, args: string[], o?: { cwd: string }) => {
   const pr = spawn(command, args, {
     cwd: o?.cwd,
-    shell: true,
+    shell: 'bash',
     stdio: 'inherit',
   });
 

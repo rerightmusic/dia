@@ -47,7 +47,7 @@ export type CustomCommand = {
     actualName?: string;
     alias?: string;
     required?: boolean;
-    type: 'boolean' | 'number' | 'string';
+    type: 'boolean' | 'number' | 'string' | 'array';
   }[];
   vars?: {
     name: string;
