@@ -18,8 +18,12 @@ export const cli = (fullCommandName: string, configName: string) =>
     const currPath = process.env.PWD || path.resolve('.');
 
     let gitRoot = currPath;
-    while (!fs.existsSync(path.join(gitRoot, '.git'))) {
+    while (!fs.existsSync(path.join(gitRoot, '.git')) && gitRoot !== '/') {
       gitRoot = path.dirname(gitRoot);
+    }
+    if (gitRoot === '/') {
+      console.info('No git repo found');
+      return { yargs, args };
     }
 
     let rootPath = null;
